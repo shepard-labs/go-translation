@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newConfigCommand(opts *rootOptions) *cobra.Command {
+func newConfigCommand(opts *rootOptions, root *cobra.Command) *cobra.Command {
 	cmd := &cobra.Command{Use: "config", Short: "Manage local configuration"}
 	cmd.AddCommand(&cobra.Command{
 		Use:   "init",
@@ -33,11 +33,11 @@ func newConfigCommand(opts *rootOptions) *cobra.Command {
 			return nil
 		},
 	})
-	cmd.AddCommand(&cobra.Command{
+	show := &cobra.Command{
 		Use:   "show",
 		Short: "Show resolved local configuration without secrets",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, path, err := loadResolvedConfig(opts)
+			cfg, path, err := loadResolvedConfig(cmd, opts)
 			if err != nil {
 				return withCode(ExitUsage, err)
 			}
@@ -45,7 +45,10 @@ func newConfigCommand(opts *rootOptions) *cobra.Command {
 			fmt.Fprintf(cmd.OutOrStdout(), "From: %s\nTo: %s\nTimeout: %s\nMax output tokens: %d\nChunking: %t (%d chars)\n", cfg.DefaultSourceLanguage, cfg.DefaultTargetLanguage, cfg.Timeout, cfg.MaxOutputTokens, cfg.Chunking.Enabled, cfg.Chunking.MaxChars)
 			return nil
 		},
-	})
+	}
+	show.Flags().AddFlagSet(root.Flags())
+	cmd.AddCommand(show)
+	cmd.PersistentFlags().AddFlagSet(root.Flags())
 	return cmd
 }
 

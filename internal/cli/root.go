@@ -45,7 +45,7 @@ func NewRootCommand() *cobra.Command {
 		Long:  "aitranslate is a local-only CLI for AI-assisted translation using Anthropic, Gemini, OpenRouter, or Google Cloud.",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runTranslate(cmd.Context(), opts, args)
+			return runTranslate(cmd.Context(), cmd, opts, args)
 		},
 	}
 
@@ -67,15 +67,15 @@ func NewRootCommand() *cobra.Command {
 		opts.temperatureSet = cmd.Flags().Changed("temperature")
 	}
 
-	cmd.AddCommand(newConfigCommand(opts))
+	cmd.AddCommand(newConfigCommand(opts, cmd))
 	cmd.AddCommand(newProvidersCommand())
 	cmd.AddCommand(newModelsCommand())
-	cmd.AddCommand(newTUICommand(opts))
+	cmd.AddCommand(newTUICommand(opts, cmd))
 	return cmd
 }
 
-func runTranslate(ctx context.Context, opts *rootOptions, args []string) error {
-	cfg, _, err := loadResolvedConfig(opts)
+func runTranslate(ctx context.Context, cmd *cobra.Command, opts *rootOptions, args []string) error {
+	cfg, _, err := loadResolvedConfig(cmd, opts)
 	if err != nil {
 		return withCode(ExitUsage, err)
 	}
@@ -115,16 +115,12 @@ func runTranslate(ctx context.Context, opts *rootOptions, args []string) error {
 	return nil
 }
 
-func loadResolvedConfig(opts *rootOptions) (config.Config, string, error) {
-	cfg, path, err := config.Load(opts.configPath)
-	if err != nil {
-		return cfg, path, err
-	}
+func loadResolvedConfig(cmd *cobra.Command, opts *rootOptions) (config.Config, string, error) {
 	var temp *float64
 	if opts.temperatureSet {
 		temp = &opts.temperature
 	}
-	config.ApplyOverrides(&cfg, config.Overrides{
+	cfg, path, err := config.LoadWithLoader(opts.configPath, config.Overrides{
 		Provider:        opts.provider,
 		Model:           opts.model,
 		SourceLanguage:  opts.from,
@@ -133,15 +129,18 @@ func loadResolvedConfig(opts *rootOptions) (config.Config, string, error) {
 		MaxOutputTokens: opts.maxOutputTokens,
 		Temperature:     temp,
 	})
+	if err != nil {
+		return cfg, path, err
+	}
 	return cfg, path, nil
 }
 
-func newTUICommand(opts *rootOptions) *cobra.Command {
-	return &cobra.Command{
+func newTUICommand(opts *rootOptions, root *cobra.Command) *cobra.Command {
+	cmd := &cobra.Command{
 		Use:   "tui",
 		Short: "Open the interactive translation TUI",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, _, err := loadResolvedConfig(opts)
+			cfg, _, err := loadResolvedConfig(cmd, opts)
 			if err != nil {
 				return withCode(ExitUsage, err)
 			}
@@ -151,6 +150,8 @@ func newTUICommand(opts *rootOptions) *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().AddFlagSet(root.Flags())
+	return cmd
 }
 
 func printProviderStatus(cfg config.Config) string {
