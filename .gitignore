@@ -1,2 +1,7 @@
 aitranslate
 /.idea
+.env
+.env.local
+.env.*
+!/.env.example
+
