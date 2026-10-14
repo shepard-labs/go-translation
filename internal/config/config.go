@@ -5,15 +5,17 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
 )
 
 const (
-	ProviderAnthropic  = "anthropic"
-	ProviderGemini     = "gemini"
-	ProviderOpenRouter = "openrouter"
+	ProviderAnthropic   = "anthropic"
+	ProviderGemini      = "gemini"
+	ProviderOpenRouter  = "openrouter"
+	ProviderGoogleCloud = "googlecloud"
 )
 
 type Config struct {
@@ -39,6 +41,9 @@ type ProviderConfig struct {
 	BaseURL      string `yaml:"base_url,omitempty"`
 	AppName      string `yaml:"app_name,omitempty"`
 	AppURL       string `yaml:"app_url,omitempty"`
+	ProjectID    string `yaml:"project_id,omitempty"`
+	Location     string `yaml:"location,omitempty"`
+	MimeType     string `yaml:"mime_type,omitempty"`
 }
 
 type Overrides struct {
@@ -55,7 +60,7 @@ type Overrides struct {
 func Default() Config {
 	return Config{
 		DefaultProvider:       ProviderAnthropic,
-		DefaultModel:          "claude-3-5-sonnet-latest",
+		DefaultModel:          "claude-sonnet-4-6",
 		DefaultSourceLanguage: "auto",
 		DefaultTargetLanguage: "",
 		Timeout:               120 * time.Second,
@@ -68,16 +73,21 @@ func Default() Config {
 		Providers: map[string]ProviderConfig{
 			ProviderAnthropic: {
 				APIKeyEnv:    "ANTHROPIC_API_KEY",
-				DefaultModel: "claude-3-5-sonnet-latest",
+				DefaultModel: "claude-sonnet-4-6",
 			},
 			ProviderGemini: {
 				APIKeyEnv:    "GEMINI_API_KEY",
-				DefaultModel: "gemini-1.5-pro",
+				DefaultModel: "gemini-3.1-pro",
 			},
 			ProviderOpenRouter: {
 				APIKeyEnv:    "OPENROUTER_API_KEY",
-				DefaultModel: "anthropic/claude-3.5-sonnet",
+				DefaultModel: "anthropic/claude-sonnet-4.6",
 				AppName:      "aitranslate",
+			},
+			ProviderGoogleCloud: {
+				APIKeyEnv: "GOOGLE_APPLICATION_CREDENTIALS",
+				Location:  "global",
+				MimeType:  "text/plain",
 			},
 		},
 	}
@@ -124,6 +134,11 @@ func ApplyOverrides(cfg *Config, overrides Overrides) {
 	if overrides.Provider != "" {
 		cfg.DefaultProvider = overrides.Provider
 	}
+	// Google Cloud does not use LLM model names; clear a stale global default
+	// when the provider is googlecloud and no explicit model was given.
+	if cfg.DefaultProvider == ProviderGoogleCloud && overrides.Model == "" && !isGoogleCloudModel(cfg.DefaultModel) {
+		cfg.DefaultModel = ""
+	}
 	if overrides.Model != "" {
 		cfg.DefaultModel = overrides.Model
 	}
@@ -161,14 +176,16 @@ func ApplyEnv(cfg *Config) {
 
 func Validate(cfg Config) error {
 	if !IsProvider(cfg.DefaultProvider) {
-		return fmt.Errorf("invalid provider %q: expected anthropic, gemini, or openrouter", cfg.DefaultProvider)
+		return fmt.Errorf("invalid provider %q: expected anthropic, gemini, openrouter, or googlecloud", cfg.DefaultProvider)
 	}
 	if cfg.DefaultTargetLanguage == "" {
 		return errors.New("missing target language: pass --to or set default_target_language")
 	}
 	if cfg.DefaultModel == "" {
 		if provider, ok := cfg.Providers[cfg.DefaultProvider]; !ok || provider.DefaultModel == "" {
-			return errors.New("missing model: pass --model or configure a provider default_model")
+			if cfg.DefaultProvider != ProviderGoogleCloud {
+				return errors.New("missing model: pass --model or configure a provider default_model")
+			}
 		}
 	}
 	provider := cfg.Providers[cfg.DefaultProvider]
@@ -178,12 +195,15 @@ func Validate(cfg Config) error {
 	if os.Getenv(provider.APIKeyEnv) == "" {
 		return MissingCredentialsError{Provider: cfg.DefaultProvider, Env: provider.APIKeyEnv}
 	}
+	if cfg.DefaultProvider == ProviderGoogleCloud && provider.ProjectID == "" {
+		return errors.New("missing project_id: set providers.googlecloud.project_id")
+	}
 	return nil
 }
 
 func IsProvider(provider string) bool {
 	switch provider {
-	case ProviderAnthropic, ProviderGemini, ProviderOpenRouter:
+	case ProviderAnthropic, ProviderGemini, ProviderOpenRouter, ProviderGoogleCloud:
 		return true
 	default:
 		return false
@@ -240,6 +260,9 @@ func mergeDefaults(cfg *Config) {
 	if cfg.DefaultProvider == "" {
 		cfg.DefaultProvider = def.DefaultProvider
 	}
+	if cfg.DefaultProvider == ProviderGoogleCloud && !isGoogleCloudModel(cfg.DefaultModel) {
+		cfg.DefaultModel = ""
+	}
 	if cfg.DefaultSourceLanguage == "" {
 		cfg.DefaultSourceLanguage = def.DefaultSourceLanguage
 	}
@@ -260,12 +283,27 @@ func mergeDefaults(cfg *Config) {
 		if current.APIKeyEnv == "" {
 			current.APIKeyEnv = provider.APIKeyEnv
 		}
+		if name == ProviderGoogleCloud && !isGoogleCloudModel(current.DefaultModel) {
+			current.DefaultModel = ""
+		}
 		if current.DefaultModel == "" {
 			current.DefaultModel = provider.DefaultModel
 		}
 		if current.AppName == "" {
 			current.AppName = provider.AppName
 		}
+		if current.Location == "" {
+			current.Location = provider.Location
+		}
+		if current.MimeType == "" {
+			current.MimeType = provider.MimeType
+		}
 		cfg.Providers[name] = current
 	}
+}
+
+// isGoogleCloudModel reports whether model is a valid Cloud Translation
+// model resource name, e.g. projects/p/locations/l/models/general/nmt.
+func isGoogleCloudModel(model string) bool {
+	return model == "" || strings.HasPrefix(model, "projects/")
 }

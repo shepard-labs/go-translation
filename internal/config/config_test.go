@@ -20,6 +20,36 @@ func TestApplyOverrides(t *testing.T) {
 	}
 }
 
+func TestGoogleCloudClearsLLMDefaultModel(t *testing.T) {
+	// Default() ships an Anthropic model name; googlecloud must not send it
+	// to Cloud Translation as a model resource.
+	cfg := Default()
+	cfg.DefaultProvider = ProviderGoogleCloud
+	mergeDefaults(&cfg)
+	if cfg.DefaultModel != "" {
+		t.Fatalf("DefaultModel = %q, want empty for googlecloud", cfg.DefaultModel)
+	}
+	if got := ModelFor(cfg); got != "" {
+		t.Fatalf("ModelFor = %q, want empty", got)
+	}
+
+	// A user-supplied googlecloud model resource name is preserved.
+	cfg2 := Default()
+	cfg2.DefaultProvider = ProviderGoogleCloud
+	cfg2.DefaultModel = "projects/p/locations/global/models/general/nmt"
+	mergeDefaults(&cfg2)
+	if cfg2.DefaultModel != "projects/p/locations/global/models/general/nmt" {
+		t.Fatalf("DefaultModel = %q, want preserved", cfg2.DefaultModel)
+	}
+
+	// Switching provider via overrides clears a stale LLM model.
+	cfg3 := Default()
+	ApplyOverrides(&cfg3, Overrides{Provider: ProviderGoogleCloud})
+	if cfg3.DefaultModel != "" {
+		t.Fatalf("DefaultModel = %q after provider override, want empty", cfg3.DefaultModel)
+	}
+}
+
 func TestIsProvider(t *testing.T) {
 	if !IsProvider(ProviderAnthropic) || !IsProvider(ProviderGemini) || !IsProvider(ProviderOpenRouter) {
 		t.Fatal("expected known providers to be valid")
