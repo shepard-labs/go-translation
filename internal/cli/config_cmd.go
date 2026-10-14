@@ -53,11 +53,13 @@ func runConfigForm(cfg *config.Config) error {
 	anthropic := cfg.Providers[config.ProviderAnthropic]
 	gemini := cfg.Providers[config.ProviderGemini]
 	openrouter := cfg.Providers[config.ProviderOpenRouter]
+	googlecloud := cfg.Providers[config.ProviderGoogleCloud]
 	form := huh.NewForm(huh.NewGroup(
 		huh.NewSelect[string]().Title("Default provider").Options(
 			huh.NewOption("Anthropic", config.ProviderAnthropic),
 			huh.NewOption("Gemini", config.ProviderGemini),
 			huh.NewOption("OpenRouter", config.ProviderOpenRouter),
+			huh.NewOption("Google Cloud", config.ProviderGoogleCloud),
 		).Value(&cfg.DefaultProvider),
 		huh.NewInput().Title("Default model").Value(&cfg.DefaultModel),
 		huh.NewInput().Title("Source language").Value(&cfg.DefaultSourceLanguage),
@@ -68,6 +70,10 @@ func runConfigForm(cfg *config.Config) error {
 		huh.NewInput().Title("OpenRouter API key env var").Value(&openrouter.APIKeyEnv),
 		huh.NewInput().Title("OpenRouter app name").Value(&openrouter.AppName),
 		huh.NewInput().Title("OpenRouter app URL").Value(&openrouter.AppURL),
+		huh.NewInput().Title("Google Cloud credentials env var").Value(&googlecloud.APIKeyEnv),
+		huh.NewInput().Title("Google Cloud project ID").Value(&googlecloud.ProjectID),
+		huh.NewInput().Title("Google Cloud location").Value(&googlecloud.Location),
+		huh.NewInput().Title("Google Cloud mime type").Value(&googlecloud.MimeType),
 	))
 	if err := form.Run(); err != nil {
 		return err
@@ -75,5 +81,6 @@ func runConfigForm(cfg *config.Config) error {
 	cfg.Providers[config.ProviderAnthropic] = anthropic
 	cfg.Providers[config.ProviderGemini] = gemini
 	cfg.Providers[config.ProviderOpenRouter] = openrouter
+	cfg.Providers[config.ProviderGoogleCloud] = googlecloud
 	return nil
 }
