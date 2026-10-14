@@ -19,7 +19,7 @@ type OpenRouter struct {
 
 func NewOpenRouter(apiKey, defaultModel, appName, appURL string) OpenRouter {
 	if appName == "" {
-		appName = "aitranslate"
+		appName = "gotranslate"
 	}
 	return OpenRouter{apiKey: apiKey, defaultModel: defaultModel, appName: appName, appURL: appURL}
 }

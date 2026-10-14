@@ -82,7 +82,7 @@ func Default() Config {
 			ProviderOpenRouter: {
 				APIKeyEnv:    "OPENROUTER_API_KEY",
 				DefaultModel: "anthropic/claude-sonnet-4.6",
-				AppName:      "aitranslate",
+				AppName:      "gotranslate",
 			},
 			ProviderGoogleCloud: {
 				APIKeyEnv: "GOOGLE_APPLICATION_CREDENTIALS",
@@ -98,7 +98,7 @@ func DefaultPath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, "aitranslate", "config.yaml"), nil
+	return filepath.Join(dir, "gotranslate", "config.yaml"), nil
 }
 
 func Load(path string) (Config, string, error) {

@@ -12,14 +12,14 @@ import (
 	"github.com/spf13/viper"
 )
 
-// Env keys that the loader reads explicitly. These keys use the AITRANSLATE_
+// Env keys that the loader reads explicitly. These keys use the GOTRANSLATE_
 // prefix and are documented in README.md.
 const (
-	envKeyProvider       = "AITRANSLATE_PROVIDER"
-	envKeyModel          = "AITRANSLATE_MODEL"
-	envKeySourceLanguage = "AITRANSLATE_FROM"
-	envKeyTargetLanguage = "AITRANSLATE_TO"
-	envKeyConfigPath     = "AITRANSLATE_CONFIG"
+	envKeyProvider       = "GOTRANSLATE_PROVIDER"
+	envKeyModel          = "GOTRANSLATE_MODEL"
+	envKeySourceLanguage = "GOTRANSLATE_FROM"
+	envKeyTargetLanguage = "GOTRANSLATE_TO"
+	envKeyConfigPath     = "GOTRANSLATE_CONFIG"
 )
 
 // LoaderOption customizes the behavior of LoadWithLoader.
@@ -57,8 +57,8 @@ type loader struct {
 //
 // Precedence (highest to lowest):
 //  1. CLI overrides (ApplyOverrides)
-//  2. Real environment variables (AITRANSLATE_*)
-//  3. Config file (resolved path, or AITRANSLATE_CONFIG)
+//  2. Real environment variables (GOTRANSLATE_*)
+//  3. Config file (resolved path, or GOTRANSLATE_CONFIG)
 //  4. .env file (optional, never overwrites existing env vars)
 //  5. Built-in defaults
 //
@@ -79,12 +79,12 @@ func LoadWithLoader(path string, overrides Overrides, opts ...LoaderOption) (Con
 	v.SetTypeByDefaultValue(true)
 
 	if !l.skipEnv {
-		v.SetEnvPrefix("AITRANSLATE")
+		v.SetEnvPrefix("GOTRANSLATE")
 		v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 		v.AutomaticEnv()
 	}
 
-	if !l.skipDotenv && os.Getenv("CI") == "" && os.Getenv("AITRANSLATE_NO_DOTENV") == "" {
+	if !l.skipDotenv && os.Getenv("CI") == "" && os.Getenv("GOTRANSLATE_NO_DOTENV") == "" {
 		if l.dotenvPath != "" {
 			_ = godotenv.Load(l.dotenvPath)
 		} else {
@@ -169,7 +169,7 @@ func resolveConfigPath(path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, "aitranslate", "config.yaml"), nil
+	return filepath.Join(dir, "gotranslate", "config.yaml"), nil
 }
 
 func setViperDefaults(v *viper.Viper, def Config) error {

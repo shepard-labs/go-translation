@@ -125,7 +125,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	title := lipgloss.NewStyle().Bold(true).Render("aitranslate TUI")
+	title := lipgloss.NewStyle().Bold(true).Render("gotranslate TUI")
 	status := m.status
 	if m.busy {
 		status = m.spinner.View() + " translating"

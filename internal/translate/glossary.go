@@ -10,7 +10,7 @@ import (
 )
 
 // Glossary maps source terms to their required translation per target language.
-// Loaded from ~/.config/aitranslate/glossary.yaml by default.
+// Loaded from ~/.config/gotranslate/glossary.yaml by default.
 type Glossary struct {
 	// Terms maps a lowercase source term → per-language preferred translation.
 	Terms map[string]map[string]string `yaml:"terms"`
@@ -25,7 +25,7 @@ func LoadGlossary(path string) (Glossary, error) {
 		if err != nil {
 			return g, nil
 		}
-		path = filepath.Join(dir, "aitranslate", "glossary.yaml")
+		path = filepath.Join(dir, "gotranslate", "glossary.yaml")
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {

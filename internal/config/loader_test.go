@@ -62,8 +62,8 @@ default_target_language: French
 		t.Fatalf("write config: %v", err)
 	}
 
-	t.Setenv("AITRANSLATE_PROVIDER", ProviderGemini)
-	t.Setenv("AITRANSLATE_TO", "German")
+	t.Setenv("GOTRANSLATE_PROVIDER", ProviderGemini)
+	t.Setenv("GOTRANSLATE_TO", "German")
 
 	cfg, _, err := LoadWithLoader(path, Overrides{}, WithSkipDotenv())
 	if err != nil {
@@ -87,7 +87,7 @@ default_target_language: French
 		t.Fatalf("write config: %v", err)
 	}
 
-	t.Setenv("AITRANSLATE_TO", "German")
+	t.Setenv("GOTRANSLATE_TO", "German")
 
 	cfg, _, err := LoadWithLoader(path, Overrides{TargetLanguage: "Spanish"}, WithSkipDotenv())
 	if err != nil {
@@ -101,7 +101,7 @@ default_target_language: French
 func TestLoadWithLoaderDotenv(t *testing.T) {
 	dir := t.TempDir()
 	dotenv := filepath.Join(dir, ".env")
-	if err := os.WriteFile(dotenv, []byte("AITRANSLATE_TO=Italian\n"), 0o600); err != nil {
+	if err := os.WriteFile(dotenv, []byte("GOTRANSLATE_TO=Italian\n"), 0o600); err != nil {
 		t.Fatalf("write .env: %v", err)
 	}
 
@@ -117,11 +117,11 @@ func TestLoadWithLoaderDotenv(t *testing.T) {
 func TestLoadWithLoaderDotenvDoesNotOverwriteExistingEnv(t *testing.T) {
 	dir := t.TempDir()
 	dotenv := filepath.Join(dir, ".env")
-	if err := os.WriteFile(dotenv, []byte("AITRANSLATE_TO=Italian\n"), 0o600); err != nil {
+	if err := os.WriteFile(dotenv, []byte("GOTRANSLATE_TO=Italian\n"), 0o600); err != nil {
 		t.Fatalf("write .env: %v", err)
 	}
 
-	t.Setenv("AITRANSLATE_TO", "Spanish")
+	t.Setenv("GOTRANSLATE_TO", "Spanish")
 
 	cfg, _, err := LoadWithLoader("", Overrides{}, WithDotenvPath(dotenv))
 	if err != nil {

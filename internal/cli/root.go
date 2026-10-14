@@ -40,9 +40,9 @@ func Execute() error {
 func NewRootCommand() *cobra.Command {
 	opts := &rootOptions{}
 	cmd := &cobra.Command{
-		Use:   "aitranslate [text]",
+		Use:   "gotranslate [text]",
 		Short: "Translate text and files with local CLI access to AI providers",
-		Long:  "aitranslate is a local-only CLI for AI-assisted translation using Anthropic, Gemini, OpenRouter, or Google Cloud.",
+		Long:  "gotranslate is a local-only CLI for AI-assisted translation using Anthropic, Gemini, OpenRouter, or Google Cloud.",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runTranslate(cmd.Context(), cmd, opts, args)
