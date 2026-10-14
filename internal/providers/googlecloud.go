@@ -37,7 +37,7 @@ func NewGoogleCloud(credentialsPath, projectID, location, defaultModel, mimeType
 }
 
 func (g GoogleCloud) Translate(ctx context.Context, req translate.TranslationRequest) (translate.TranslationResult, error) {
-	client, err := cloudtranslate.NewTranslationClient(ctx, googleapioption.WithCredentialsFile(g.credentialsPath))
+	client, err := cloudtranslate.NewTranslationClient(ctx, googleapioption.WithAuthCredentialsFile(googleapioption.ServiceAccount, g.credentialsPath))
 	if err != nil {
 		return translate.TranslationResult{}, fmt.Errorf("creating google cloud translation client: %w", err)
 	}

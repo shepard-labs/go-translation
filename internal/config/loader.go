@@ -84,10 +84,10 @@ func LoadWithLoader(path string, overrides Overrides, opts ...LoaderOption) (Con
 		v.AutomaticEnv()
 	}
 
-	if !l.skipDotenv && os.Getenv("CI") == "" && os.Getenv("GOTRANSLATE_NO_DOTENV") == "" {
+	if !l.skipDotenv && os.Getenv("GOTRANSLATE_NO_DOTENV") == "" {
 		if l.dotenvPath != "" {
 			_ = godotenv.Load(l.dotenvPath)
-		} else {
+		} else if os.Getenv("CI") == "" {
 			_ = godotenv.Load()
 		}
 	}
