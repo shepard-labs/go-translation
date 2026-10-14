@@ -102,32 +102,7 @@ func DefaultPath() (string, error) {
 }
 
 func Load(path string) (Config, string, error) {
-	cfg := Default()
-	if path == "" {
-		path = os.Getenv("AITRANSLATE_CONFIG")
-	}
-	if path == "" {
-		var err error
-		path, err = DefaultPath()
-		if err != nil {
-			return cfg, "", err
-		}
-	}
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			ApplyEnv(&cfg)
-			return cfg, path, nil
-		}
-		return cfg, path, err
-	}
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
-		return cfg, path, err
-	}
-	mergeDefaults(&cfg)
-	ApplyEnv(&cfg)
-	return cfg, path, nil
+	return LoadWithLoader(path, Overrides{})
 }
 
 func ApplyOverrides(cfg *Config, overrides Overrides) {
@@ -156,21 +131,6 @@ func ApplyOverrides(cfg *Config, overrides Overrides) {
 	}
 	if overrides.Temperature != nil {
 		cfg.Temperature = *overrides.Temperature
-	}
-}
-
-func ApplyEnv(cfg *Config) {
-	if v := os.Getenv("AITRANSLATE_PROVIDER"); v != "" {
-		cfg.DefaultProvider = v
-	}
-	if v := os.Getenv("AITRANSLATE_MODEL"); v != "" {
-		cfg.DefaultModel = v
-	}
-	if v := os.Getenv("AITRANSLATE_FROM"); v != "" {
-		cfg.DefaultSourceLanguage = v
-	}
-	if v := os.Getenv("AITRANSLATE_TO"); v != "" {
-		cfg.DefaultTargetLanguage = v
 	}
 }
 
