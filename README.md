@@ -83,6 +83,7 @@ Supported providers:
 anthropic
 gemini
 openrouter
+googlecloud
 ```
 
 List providers:
@@ -100,9 +101,9 @@ Show example model names:
 Provider examples:
 
 ```bash
-./aitranslate "Hello world" --to Spanish --provider anthropic --model claude-3-5-sonnet-latest
-./aitranslate "Hello world" --to Spanish --provider gemini --model gemini-1.5-pro
-./aitranslate "Hello world" --to Spanish --provider openrouter --model anthropic/claude-3.5-sonnet
+./aitranslate "Hello world" --to Spanish --provider anthropic --model claude-sonnet-4-6
+./aitranslate "Hello world" --to Spanish --provider gemini --model gemini-3.1-pro
+./aitranslate "Hello world" --to Spanish --provider openrouter --model anthropic/claude-sonnet-4.6
 ```
 
 ## Provider Setup
@@ -118,15 +119,24 @@ Gemini:
 
 ```bash
 export GEMINI_API_KEY=...
-./aitranslate "Good morning" --to German --provider gemini --model gemini-1.5-pro
+./aitranslate "Good morning" --to German --provider gemini --model gemini-3.1-pro
 ```
 
 OpenRouter:
 
 ```bash
 export OPENROUTER_API_KEY=...
-./aitranslate "Good morning" --to German --provider openrouter --model anthropic/claude-3.5-sonnet
+./aitranslate "Good morning" --to German --provider openrouter --model anthropic/claude-sonnet-4.6
 ```
+
+Google Cloud (Cloud Translation API v3):
+
+```bash
+export GOOGLE_APPLICATION_CREDENTIALS=/path/to/credentials.json  # or rely on ADC
+./aitranslate "Good morning" --to German --provider googlecloud
+```
+
+`googlecloud` requires `providers.googlecloud.project_id` in config and accepts `--to` values as ISO codes (`de`) or English names (`German`).
 
 ## Configuration
 
@@ -164,7 +174,7 @@ Example config:
 
 ```yaml
 default_provider: anthropic
-default_model: claude-3-5-sonnet-latest
+default_model: claude-sonnet-4-6
 default_source_language: auto
 default_target_language: English
 timeout: 120s
@@ -178,15 +188,15 @@ chunking:
 providers:
   anthropic:
     api_key_env: ANTHROPIC_API_KEY
-    default_model: claude-3-5-sonnet-latest
+    default_model: claude-sonnet-4-6
 
   gemini:
     api_key_env: GEMINI_API_KEY
-    default_model: gemini-1.5-pro
+    default_model: gemini-3.1-pro
 
   openrouter:
     api_key_env: OPENROUTER_API_KEY
-    default_model: anthropic/claude-3.5-sonnet
+    default_model: anthropic/claude-sonnet-4.6
     app_name: aitranslate
     app_url: ""
 ```
@@ -204,7 +214,7 @@ Configuration precedence:
 
 ```bash
 AITRANSLATE_PROVIDER=anthropic
-AITRANSLATE_MODEL=claude-3-5-sonnet-latest
+AITRANSLATE_MODEL=claude-sonnet-4-6
 AITRANSLATE_FROM=auto
 AITRANSLATE_TO=Spanish
 AITRANSLATE_CONFIG=/custom/config.yaml
@@ -241,7 +251,7 @@ aitranslate tui
 Common flags:
 
 ```text
---provider string           Provider to use: anthropic, gemini, or openrouter
+--provider string           Provider to use: anthropic, gemini, openrouter, or googlecloud
 --model string              Model to use
 --from string               Source language, or auto
 --to string                 Target language

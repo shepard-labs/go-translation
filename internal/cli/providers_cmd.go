@@ -15,6 +15,7 @@ func newProvidersCommand() *cobra.Command {
 			fmt.Fprintln(cmd.OutOrStdout(), "anthropic")
 			fmt.Fprintln(cmd.OutOrStdout(), "gemini")
 			fmt.Fprintln(cmd.OutOrStdout(), "openrouter")
+			fmt.Fprintln(cmd.OutOrStdout(), "googlecloud")
 		},
 	})
 	return cmd
@@ -26,9 +27,10 @@ func newModelsCommand() *cobra.Command {
 		Use:   "examples",
 		Short: "Show example model names",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Fprintln(cmd.OutOrStdout(), "anthropic: claude-3-5-sonnet-latest")
-			fmt.Fprintln(cmd.OutOrStdout(), "gemini: gemini-1.5-pro")
-			fmt.Fprintln(cmd.OutOrStdout(), "openrouter: anthropic/claude-3.5-sonnet")
+			fmt.Fprintln(cmd.OutOrStdout(), "anthropic: claude-sonnet-4-6")
+			fmt.Fprintln(cmd.OutOrStdout(), "gemini: gemini-3.1-pro")
+			fmt.Fprintln(cmd.OutOrStdout(), "openrouter: anthropic/claude-sonnet-4.6")
+			fmt.Fprintln(cmd.OutOrStdout(), "googlecloud: projects/my-project/locations/global/models/general/nmt")
 		},
 	})
 	return cmd

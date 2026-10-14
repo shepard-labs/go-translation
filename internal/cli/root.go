@@ -42,7 +42,7 @@ func NewRootCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "aitranslate [text]",
 		Short: "Translate text and files with local CLI access to AI providers",
-		Long:  "aitranslate is a local-only CLI for AI-assisted translation using Anthropic, Gemini, or OpenRouter.",
+		Long:  "aitranslate is a local-only CLI for AI-assisted translation using Anthropic, Gemini, OpenRouter, or Google Cloud.",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runTranslate(cmd.Context(), opts, args)
@@ -50,7 +50,7 @@ func NewRootCommand() *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	flags.StringVar(&opts.provider, "provider", "", "Provider to use: anthropic, gemini, or openrouter")
+	flags.StringVar(&opts.provider, "provider", "", "Provider to use: anthropic, gemini, openrouter, or googlecloud")
 	flags.StringVar(&opts.model, "model", "", "Model to use")
 	flags.StringVar(&opts.from, "from", "", "Source language, or auto")
 	flags.StringVar(&opts.to, "to", "", "Target language")
