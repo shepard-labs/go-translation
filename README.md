@@ -204,9 +204,10 @@ providers:
 Configuration precedence:
 
 1. CLI flags
-2. Environment variables
+2. Real environment variables
 3. Config file
-4. Built-in defaults
+4. `.env` file (local development only)
+5. Built-in defaults
 
 ## Environment Variables
 
@@ -229,6 +230,18 @@ OPENROUTER_API_KEY=...
 ```
 
 The config stores the credential environment variable names, not the raw secret values.
+
+## Local `.env` Files
+
+For local development, you can keep settings in a `.env` file in the working directory. `godotenv` loads `.env` automatically when neither `CI` nor `AITRANSLATE_NO_DOTENV` is set. Real environment variables always take precedence over `.env` values, and `.env` files never overwrite already-exported variables.
+
+Copy the example and fill in your values:
+
+```bash
+cp .env.example .env
+```
+
+Production deployments should inject environment variables directly instead of relying on `.env` files.
 
 ## Commands
 
