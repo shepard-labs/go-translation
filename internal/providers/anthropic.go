@@ -2,20 +2,28 @@ package providers
 
 import (
 	"context"
-	"strings"
 
 	"github.com/shepard-labs/go-translation/internal/prompt"
 	"github.com/shepard-labs/go-translation/internal/translate"
+
 	"github.com/shepard-labs/go-ai-sdk/anthropic"
 )
 
 type Anthropic struct {
 	apiKey       string
 	defaultModel string
+	glossary     translate.Glossary
 }
 
 func NewAnthropic(apiKey, defaultModel string) Anthropic {
 	return Anthropic{apiKey: apiKey, defaultModel: defaultModel}
+}
+
+// WithGlossary attaches a term glossary; the model can query it via the
+// lookup_glossary tool.
+func (a Anthropic) WithGlossary(g translate.Glossary) Anthropic {
+	a.glossary = g
+	return a
 }
 
 func (a Anthropic) Translate(ctx context.Context, req translate.TranslationRequest) (translate.TranslationResult, error) {
@@ -23,36 +31,29 @@ func (a Anthropic) Translate(ctx context.Context, req translate.TranslationReque
 	if modelID == "" {
 		modelID = a.defaultModel
 	}
-	temperature := req.Temperature
 	provider := anthropic.CreateAnthropic(anthropic.ProviderSettings{APIKey: a.apiKey})
 	if err := provider.Err(); err != nil {
 		return translate.TranslationResult{}, err
 	}
-	result, err := provider.Model(modelID).DoGenerate(ctx, anthropic.GenerateOptions{
-		MaxTokens:   req.MaxOutputTokens,
-		Temperature: &temperature,
-		Messages: []anthropic.Message{
-			anthropic.SystemMessage{Content: prompt.System(req.SourceLanguage, req.TargetLanguage)},
-			anthropic.UserMessage{Content: []anthropic.UserContent{anthropic.TextContent{Text: prompt.User(req.Text)}}},
-		},
+
+	protected := translate.Protect(req.Text)
+	toolset := translate.Toolset{Glossary: a.glossary, Spans: protected.Spans}
+	system := prompt.SystemAgent(req.SourceLanguage, req.TargetLanguage, protected.Hits, glossarySummary(a.glossary, req.TargetLanguage))
+
+	sess := newAnthropicSession(provider.Model(modelID), system, prompt.User(protected.Text), toolset.Definitions(), req.MaxOutputTokens, req.Temperature)
+	res, err := translate.RunAgentLoop(ctx, sess, translate.AgentRequest{
+		System:     system,
+		User:       prompt.User(protected.Text),
+		Toolset:    toolset,
+		RestoreEnd: true,
+		Spans:      protected.Spans,
 	})
 	if err != nil {
 		return translate.TranslationResult{}, err
 	}
-	var out strings.Builder
-	for _, content := range result.Content {
-		if text, ok := content.(anthropic.TextContent); ok {
-			out.WriteString(text.Text)
-		}
-	}
 	return translate.TranslationResult{
-		Text:     out.String(),
+		Text:     res.Text,
 		Provider: "anthropic",
 		Model:    modelID,
-		Usage: translate.Usage{
-			InputTokens:  result.Usage.InputTokens.Total,
-			OutputTokens: result.Usage.OutputTokens.Total,
-			TotalTokens:  result.Usage.TotalTokens,
-		},
 	}, nil
 }
