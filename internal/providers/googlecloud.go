@@ -12,6 +12,12 @@ import (
 	googleapioption "google.golang.org/api/option"
 )
 
+const (
+	// googleCloudTranslationLLMID is the only allowed standard Cloud Translation model.
+	// Omitting model (or using general/nmt) would fall back to NMT — which is forbidden.
+	googleCloudTranslationLLMID = "general/translation-llm"
+)
+
 type GoogleCloud struct {
 	credentialsPath string
 	projectID       string
@@ -36,6 +42,28 @@ func NewGoogleCloud(credentialsPath, projectID, location, defaultModel, mimeType
 	}
 }
 
+// TranslationLLMModel returns the full Advanced API resource name for Translation LLM.
+func TranslationLLMModel(projectID, location string) string {
+	if location == "" {
+		location = "global"
+	}
+	return fmt.Sprintf("projects/%s/locations/%s/models/%s", projectID, location, googleCloudTranslationLLMID)
+}
+
+// IsGoogleCloudNMTModel reports whether model selects Cloud Translation NMT
+// (including the API default when model is omitted).
+func IsGoogleCloudNMTModel(model string) bool {
+	m := strings.ToLower(strings.TrimSpace(model))
+	if m == "" {
+		// Empty model → Cloud Translation uses NMT. Treated as NMT so callers reject it.
+		return true
+	}
+	if m == "nmt" || m == "general/nmt" {
+		return true
+	}
+	return strings.HasSuffix(m, "/models/general/nmt") || strings.Contains(m, "/models/general/nmt/")
+}
+
 func (g GoogleCloud) Translate(ctx context.Context, req translate.TranslationRequest) (translate.TranslationResult, error) {
 	client, err := cloudtranslate.NewTranslationClient(ctx, googleapioption.WithAuthCredentialsFile(googleapioption.ServiceAccount, g.credentialsPath))
 	if err != nil {
@@ -43,7 +71,10 @@ func (g GoogleCloud) Translate(ctx context.Context, req translate.TranslationReq
 	}
 	defer client.Close()
 
-	request := g.BuildRequest(req)
+	request, modelID, err := g.BuildRequest(req)
+	if err != nil {
+		return translate.TranslationResult{}, err
+	}
 	resp, err := client.TranslateText(ctx, request)
 	if err != nil {
 		return translate.TranslationResult{}, err
@@ -54,10 +85,6 @@ func (g GoogleCloud) Translate(ctx context.Context, req translate.TranslationReq
 	}
 
 	translation := resp.GetTranslations()[0]
-	modelID := req.Model
-	if modelID == "" {
-		modelID = g.defaultModel
-	}
 	return translate.TranslationResult{
 		Text:     translation.GetTranslatedText(),
 		Provider: "googlecloud",
@@ -66,10 +93,10 @@ func (g GoogleCloud) Translate(ctx context.Context, req translate.TranslationReq
 	}, nil
 }
 
-func (g GoogleCloud) BuildRequest(req translate.TranslationRequest) *cloudtranslatepb.TranslateTextRequest {
-	modelID := req.Model
-	if modelID == "" {
-		modelID = g.defaultModel
+func (g GoogleCloud) BuildRequest(req translate.TranslationRequest) (*cloudtranslatepb.TranslateTextRequest, string, error) {
+	modelID, err := g.resolveModel(req.Model)
+	if err != nil {
+		return nil, "", err
 	}
 
 	source := languageCode(req.SourceLanguage)
@@ -84,16 +111,49 @@ func (g GoogleCloud) BuildRequest(req translate.TranslationRequest) *cloudtransl
 		Contents:           []string{req.Text},
 		TargetLanguageCode: languageCode(req.TargetLanguage),
 		MimeType:           g.mimeType,
+		// Always set — omitting Model makes the API use NMT.
+		Model: modelID,
 	}
 
 	if source != "" {
 		request.SourceLanguageCode = source
 	}
-	if modelID != "" {
-		request.Model = modelID
+
+	return request, modelID, nil
+}
+
+// resolveModel returns a non-NMT Cloud Translation model resource name.
+// Empty request/default model resolves to Translation LLM for this project/location.
+func (g GoogleCloud) resolveModel(requested string) (string, error) {
+	modelID := strings.TrimSpace(requested)
+	if modelID == "" {
+		modelID = strings.TrimSpace(g.defaultModel)
 	}
 
-	return request
+	switch strings.ToLower(modelID) {
+	case "", googleCloudTranslationLLMID, "translation-llm":
+		if g.projectID == "" {
+			return "", fmt.Errorf("googlecloud: project_id is required to use Translation LLM")
+		}
+		return TranslationLLMModel(g.projectID, g.location), nil
+	}
+
+	if IsGoogleCloudNMTModel(modelID) {
+		return "", fmt.Errorf("googlecloud: NMT is not allowed (model %q); use Translation LLM (%s)", modelID, googleCloudTranslationLLMID)
+	}
+
+	// Short custom ids are expanded; full projects/... paths pass through if non-NMT.
+	if !strings.HasPrefix(modelID, "projects/") {
+		if g.projectID == "" {
+			return "", fmt.Errorf("googlecloud: project_id is required for model %q", modelID)
+		}
+		modelID = fmt.Sprintf("projects/%s/locations/%s/models/%s", g.projectID, g.location, modelID)
+		if IsGoogleCloudNMTModel(modelID) {
+			return "", fmt.Errorf("googlecloud: NMT is not allowed (model %q); use Translation LLM (%s)", modelID, googleCloudTranslationLLMID)
+		}
+	}
+
+	return modelID, nil
 }
 
 // languageCode maps common English language names to ISO 639-1 codes so the

@@ -2,6 +2,7 @@ package providers
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/shepard-labs/go-translation/internal/translate"
@@ -36,17 +37,49 @@ func TestNewGoogleCloudDefaults(t *testing.T) {
 	}
 }
 
+func TestTranslationLLMModel(t *testing.T) {
+	got := TranslationLLMModel("proj-123", "global")
+	want := "projects/proj-123/locations/global/models/general/translation-llm"
+	if got != want {
+		t.Errorf("TranslationLLMModel = %q, want %q", got, want)
+	}
+}
+
+func TestIsGoogleCloudNMTModel(t *testing.T) {
+	cases := []struct {
+		model string
+		want  bool
+	}{
+		{"", true},
+		{"nmt", true},
+		{"general/nmt", true},
+		{"projects/p/locations/global/models/general/nmt", true},
+		{"general/translation-llm", false},
+		{"projects/p/locations/global/models/general/translation-llm", false},
+		{"projects/p/locations/us-central1/models/translation-llm-custom/abc", false},
+	}
+	for _, tc := range cases {
+		if got := IsGoogleCloudNMTModel(tc.model); got != tc.want {
+			t.Errorf("IsGoogleCloudNMTModel(%q) = %v, want %v", tc.model, got, tc.want)
+		}
+	}
+}
+
 func TestGoogleCloudBuildRequest(t *testing.T) {
-	g := NewGoogleCloud("/path/to/creds.json", "proj-123", "us-central1", "model-1", "text/html")
+	g := NewGoogleCloud("/path/to/creds.json", "proj-123", "us-central1", "", "text/html")
+	llm := TranslationLLMModel("proj-123", "us-central1")
 	req := translate.TranslationRequest{
 		Provider:       "googlecloud",
-		Model:          "model-2",
+		Model:          llm,
 		SourceLanguage: "en",
 		TargetLanguage: "fr",
 		Text:           "hello",
 	}
 
-	got := g.BuildRequest(req)
+	got, modelID, err := g.BuildRequest(req)
+	if err != nil {
+		t.Fatalf("BuildRequest: %v", err)
+	}
 
 	if got.GetParent() != "projects/proj-123/locations/us-central1" {
 		t.Errorf("Parent = %q, want %q", got.GetParent(), "projects/proj-123/locations/us-central1")
@@ -63,12 +96,12 @@ func TestGoogleCloudBuildRequest(t *testing.T) {
 	if got.GetMimeType() != "text/html" {
 		t.Errorf("MimeType = %q, want %q", got.GetMimeType(), "text/html")
 	}
-	if got.GetModel() != "model-2" {
-		t.Errorf("Model = %q, want %q", got.GetModel(), "model-2")
+	if got.GetModel() != llm || modelID != llm {
+		t.Errorf("Model = %q / %q, want %q", got.GetModel(), modelID, llm)
 	}
 }
 
-func TestGoogleCloudBuildRequestOmitSourceWhenAuto(t *testing.T) {
+func TestGoogleCloudBuildRequestDefaultsToTranslationLLM(t *testing.T) {
 	g := NewGoogleCloud("/path/to/creds.json", "proj-123", "global", "", "text/plain")
 	req := translate.TranslationRequest{
 		SourceLanguage: "auto",
@@ -76,13 +109,34 @@ func TestGoogleCloudBuildRequestOmitSourceWhenAuto(t *testing.T) {
 		Text:           "world",
 	}
 
-	got := g.BuildRequest(req)
+	got, modelID, err := g.BuildRequest(req)
+	if err != nil {
+		t.Fatalf("BuildRequest: %v", err)
+	}
 
+	want := TranslationLLMModel("proj-123", "global")
 	if got.GetSourceLanguageCode() != "" {
 		t.Errorf("SourceLanguageCode = %q, want empty for auto", got.GetSourceLanguageCode())
 	}
-	if got.GetModel() != "" {
-		t.Errorf("Model = %q, want empty", got.GetModel())
+	if got.GetModel() != want || modelID != want {
+		t.Errorf("Model = %q / %q, want Translation LLM %q", got.GetModel(), modelID, want)
+	}
+}
+
+func TestGoogleCloudBuildRequestRejectsNMT(t *testing.T) {
+	g := NewGoogleCloud("/path/to/creds.json", "proj-123", "global", "", "text/plain")
+	req := translate.TranslationRequest{
+		Model:          "projects/proj-123/locations/global/models/general/nmt",
+		TargetLanguage: "es",
+		Text:           "hello",
+	}
+
+	_, _, err := g.BuildRequest(req)
+	if err == nil {
+		t.Fatal("expected error for NMT model")
+	}
+	if !strings.Contains(err.Error(), "NMT is not allowed") {
+		t.Fatalf("error = %q, want NMT rejection", err)
 	}
 }
 
@@ -94,7 +148,10 @@ func TestGoogleCloudBuildRequestLanguageNames(t *testing.T) {
 		Text:           "hello",
 	}
 
-	got := g.BuildRequest(req)
+	got, _, err := g.BuildRequest(req)
+	if err != nil {
+		t.Fatalf("BuildRequest: %v", err)
+	}
 
 	if got.GetSourceLanguageCode() != "en" {
 		t.Errorf("SourceLanguageCode = %q, want %q", got.GetSourceLanguageCode(), "en")
@@ -112,7 +169,10 @@ func TestGoogleCloudBuildRequestLanguageCodePassthrough(t *testing.T) {
 		Text:           "hello",
 	}
 
-	got := g.BuildRequest(req)
+	got, _, err := g.BuildRequest(req)
+	if err != nil {
+		t.Fatalf("BuildRequest: %v", err)
+	}
 
 	if got.GetSourceLanguageCode() != "" {
 		t.Errorf("SourceLanguageCode = %q, want empty for auto", got.GetSourceLanguageCode())
@@ -122,16 +182,21 @@ func TestGoogleCloudBuildRequestLanguageCodePassthrough(t *testing.T) {
 	}
 }
 
-func TestGoogleCloudBuildRequestDefaultModel(t *testing.T) {
-	g := NewGoogleCloud("/path/to/creds.json", "proj-123", "global", "default-model", "text/plain")
+func TestGoogleCloudBuildRequestShortTranslationLLM(t *testing.T) {
+	g := NewGoogleCloud("/path/to/creds.json", "proj-123", "global", "", "text/plain")
 	req := translate.TranslationRequest{
+		Model:          "general/translation-llm",
 		TargetLanguage: "de",
 		Text:           "hello",
 	}
 
-	got := g.BuildRequest(req)
+	got, modelID, err := g.BuildRequest(req)
+	if err != nil {
+		t.Fatalf("BuildRequest: %v", err)
+	}
 
-	if got.GetModel() != "default-model" {
-		t.Errorf("Model = %q, want %q", got.GetModel(), "default-model")
+	want := TranslationLLMModel("proj-123", "global")
+	if got.GetModel() != want || modelID != want {
+		t.Errorf("Model = %q / %q, want %q", got.GetModel(), modelID, want)
 	}
 }

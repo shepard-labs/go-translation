@@ -129,14 +129,19 @@ export OPENROUTER_API_KEY=...
 ./gotranslate "Good morning" --to German --provider openrouter --model anthropic/claude-sonnet-4.6
 ```
 
-Google Cloud (Cloud Translation API v3):
+Google Cloud (Cloud Translation API v3 — **Translation LLM only**):
 
 ```bash
 export GOOGLE_APPLICATION_CREDENTIALS=/path/to/credentials.json  # or rely on ADC
 ./gotranslate "Good morning" --to German --provider googlecloud
+# equivalent explicit model:
+./gotranslate "Good morning" --to German --provider googlecloud \
+  --model projects/PROJECT_ID/locations/global/models/general/translation-llm
 ```
 
 `googlecloud` requires `providers.googlecloud.project_id` in config and accepts `--to` values as ISO codes (`de`) or English names (`German`).
+
+NMT is never used: omitting `--model` resolves to Translation LLM (`general/translation-llm`). Passing `general/nmt` (or any NMT resource) is rejected.
 
 ## Configuration
 

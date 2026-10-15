@@ -1,6 +1,9 @@
 package config
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestApplyOverrides(t *testing.T) {
 	cfg := Default()
@@ -33,12 +36,12 @@ func TestGoogleCloudClearsLLMDefaultModel(t *testing.T) {
 		t.Fatalf("ModelFor = %q, want empty", got)
 	}
 
-	// A user-supplied googlecloud model resource name is preserved.
+	// A user-supplied Translation LLM resource name is preserved.
 	cfg2 := Default()
 	cfg2.DefaultProvider = ProviderGoogleCloud
-	cfg2.DefaultModel = "projects/p/locations/global/models/general/nmt"
+	cfg2.DefaultModel = "projects/p/locations/global/models/general/translation-llm"
 	mergeDefaults(&cfg2)
-	if cfg2.DefaultModel != "projects/p/locations/global/models/general/nmt" {
+	if cfg2.DefaultModel != "projects/p/locations/global/models/general/translation-llm" {
 		t.Fatalf("DefaultModel = %q, want preserved", cfg2.DefaultModel)
 	}
 
@@ -56,5 +59,24 @@ func TestIsProvider(t *testing.T) {
 	}
 	if IsProvider("bad") {
 		t.Fatal("expected bad provider to be invalid")
+	}
+}
+
+func TestValidateRejectsGoogleCloudNMT(t *testing.T) {
+	t.Setenv("GOOGLE_APPLICATION_CREDENTIALS", "/tmp/fake-creds.json")
+	cfg := Default()
+	cfg.DefaultProvider = ProviderGoogleCloud
+	cfg.DefaultTargetLanguage = "Spanish"
+	cfg.DefaultModel = "projects/p/locations/global/models/general/nmt"
+	pc := cfg.Providers[ProviderGoogleCloud]
+	pc.ProjectID = "p"
+	cfg.Providers[ProviderGoogleCloud] = pc
+
+	err := Validate(cfg)
+	if err == nil {
+		t.Fatal("expected Validate to reject NMT")
+	}
+	if !strings.Contains(err.Error(), "NMT is not allowed") {
+		t.Fatalf("error = %q, want NMT rejection", err)
 	}
 }

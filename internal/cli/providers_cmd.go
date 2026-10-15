@@ -30,7 +30,7 @@ func newModelsCommand() *cobra.Command {
 			fmt.Fprintln(cmd.OutOrStdout(), "anthropic: claude-sonnet-4-6")
 			fmt.Fprintln(cmd.OutOrStdout(), "gemini: gemini-3.1-pro")
 			fmt.Fprintln(cmd.OutOrStdout(), "openrouter: anthropic/claude-sonnet-4.6")
-			fmt.Fprintln(cmd.OutOrStdout(), "googlecloud: projects/my-project/locations/global/models/general/nmt")
+			fmt.Fprintln(cmd.OutOrStdout(), "googlecloud: projects/my-project/locations/global/models/general/translation-llm")
 		},
 	})
 	return cmd

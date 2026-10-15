@@ -109,8 +109,10 @@ func ApplyOverrides(cfg *Config, overrides Overrides) {
 	if overrides.Provider != "" {
 		cfg.DefaultProvider = overrides.Provider
 	}
-	// Google Cloud does not use LLM model names; clear a stale global default
-	// when the provider is googlecloud and no explicit model was given.
+	// Google Cloud only accepts Cloud Translation model resources (never chat
+	// LLM names). Clear a stale global default when switching to googlecloud
+	// without an explicit --model. Empty then resolves to Translation LLM at
+	// request time — NMT is never used.
 	if cfg.DefaultProvider == ProviderGoogleCloud && overrides.Model == "" && !isGoogleCloudModel(cfg.DefaultModel) {
 		cfg.DefaultModel = ""
 	}
@@ -155,8 +157,14 @@ func Validate(cfg Config) error {
 	if os.Getenv(provider.APIKeyEnv) == "" {
 		return MissingCredentialsError{Provider: cfg.DefaultProvider, Env: provider.APIKeyEnv}
 	}
-	if cfg.DefaultProvider == ProviderGoogleCloud && provider.ProjectID == "" {
-		return errors.New("missing project_id: set providers.googlecloud.project_id")
+	if cfg.DefaultProvider == ProviderGoogleCloud {
+		if provider.ProjectID == "" {
+			return errors.New("missing project_id: set providers.googlecloud.project_id")
+		}
+		model := ModelFor(cfg)
+		if isGoogleCloudNMTModel(model) && model != "" {
+			return fmt.Errorf("googlecloud: NMT is not allowed (model %q); use general/translation-llm", model)
+		}
 	}
 	return nil
 }
@@ -262,8 +270,32 @@ func mergeDefaults(cfg *Config) {
 	}
 }
 
-// isGoogleCloudModel reports whether model is a valid Cloud Translation
-// model resource name, e.g. projects/p/locations/l/models/general/nmt.
+// isGoogleCloudModel reports whether model is empty (resolved later to
+// Translation LLM) or a Cloud Translation model resource / short id.
 func isGoogleCloudModel(model string) bool {
-	return model == "" || strings.HasPrefix(model, "projects/")
+	if model == "" {
+		return true
+	}
+	if strings.HasPrefix(model, "projects/") {
+		return true
+	}
+	switch strings.ToLower(strings.TrimSpace(model)) {
+	case "general/translation-llm", "translation-llm":
+		return true
+	default:
+		return false
+	}
+}
+
+// isGoogleCloudNMTModel reports whether model selects NMT (forbidden).
+// Empty is not treated as NMT here — empty resolves to Translation LLM.
+func isGoogleCloudNMTModel(model string) bool {
+	m := strings.ToLower(strings.TrimSpace(model))
+	if m == "" {
+		return false
+	}
+	if m == "nmt" || m == "general/nmt" {
+		return true
+	}
+	return strings.HasSuffix(m, "/models/general/nmt") || strings.Contains(m, "/models/general/nmt/")
 }
