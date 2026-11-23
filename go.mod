@@ -9,12 +9,12 @@ require (
 	github.com/charmbracelet/huh v1.0.0
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/joho/godotenv v1.5.1
-	github.com/shepard-labs/go-ai-sdk/anthropic v1.0.21
-	github.com/shepard-labs/go-ai-sdk/google v1.0.21
-	github.com/shepard-labs/go-ai-sdk/openrouter v1.0.21
+	github.com/shepard-labs/go-ai-sdk/anthropic v1.0.22
+	github.com/shepard-labs/go-ai-sdk/google v1.0.22
+	github.com/shepard-labs/go-ai-sdk/openrouter v1.0.22
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
-	google.golang.org/api v0.314.0
+	google.golang.org/api v0.316.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
